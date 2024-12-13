@@ -43,6 +43,8 @@ public class DeduplicateRecords {
             mapper.writerWithDefaultPrettyPrinter().writeValue(new File("deduplicated_leads.json"), result);
 
             System.out.println("Deduplication completed successfully. Output saved to: " + "deduplicated_leads.json");
+            System.out.println("Logs of changes are available in the console and saved to: " + "conflict_logs.txt");
+
         } catch (IOException e) {
             // Catch any errors during file reading/writing
             System.out.println("Error processing the files: " + e.getMessage());
