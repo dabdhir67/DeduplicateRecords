@@ -37,17 +37,12 @@ public class DeduplicateRecords {
 
 
         try {
-
             LeadsData leadsData = mapper.readValue(new File(inputFile), LeadsData.class);
-
             List<Lead> deduplicatedLeads = deduplicate(leadsData.getLeads());
-
             LeadsData result = new LeadsData(deduplicatedLeads);
             mapper.writerWithDefaultPrettyPrinter().writeValue(new File("deduplicated_leads.json"), result);
-
             System.out.println("Deduplication completed successfully. Output saved to: " + "deduplicated_leads.json");
             System.out.println("Logs of changes are available in the console and saved to: " + "app.logs");
-
         } catch (IOException e) {
             System.out.println("Error processing the files: " + e.getMessage());
         }
