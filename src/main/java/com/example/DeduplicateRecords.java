@@ -5,6 +5,8 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -15,6 +17,9 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 public class DeduplicateRecords {
+
+    private static final Logger logger = LogManager.getLogger(DeduplicateRecords.class);
+
     public static void main(String[] args) throws IOException {
         //provide input file in command line check
         if (args.length != 1) {
@@ -43,7 +48,7 @@ public class DeduplicateRecords {
             mapper.writerWithDefaultPrettyPrinter().writeValue(new File("deduplicated_leads.json"), result);
 
             System.out.println("Deduplication completed successfully. Output saved to: " + "deduplicated_leads.json");
-            System.out.println("Logs of changes are available in the console and saved to: " + "conflict_logs.txt");
+            System.out.println("Logs of changes are available in the console and saved to: " + "app.logs");
 
         } catch (IOException e) {
             // Catch any errors during file reading/writing
@@ -53,7 +58,7 @@ public class DeduplicateRecords {
     }
 
     private static List<Lead> deduplicate(List<Lead> leads) {
-        // Sort by entryDate (newest first) and awthen by order in the list
+        // Sort by entryDate desc order(newest first)
         leads.sort((a, b) -> {
             int dateComparison = b.getEntryDate().compareTo(a.getEntryDate());
             return dateComparison != 0 ? dateComparison : 1; // Tie-breaker: keep last in list
@@ -87,74 +92,39 @@ public class DeduplicateRecords {
                 }
 
                 // Log conflict resolution
-                resolveConflict(lead, conflictingId != null ? conflictingId : conflictingEmail, log);
+                resolveConflict(lead, conflictingId != null ? conflictingId : conflictingEmail);
             }
-        }
-
-        // Print log to console
-        log.forEach(System.out::println);
-
-        // Print logs to file
-        String logFilePath = "conflict_logs.txt";
-        try {
-            logConflictsToFile(log, logFilePath);
-        } catch (IOException e) {
-            e.printStackTrace();
         }
 
         return deduplicated;
     }
 
-    private static void resolveConflict(Lead newLead, Lead existingLead, List<String> log) {
-        StringBuilder logEntry = new StringBuilder();
-        logEntry.append("Conflict detected:\n");
+    private static void resolveConflict(Lead newLead, Lead existingLead) {
+        logger.warn("Conflict detected between records:");
+        logger.warn("New Record: {}", newLead);
+        logger.warn("Existing Record: {}", existingLead);
 
-        // Log the original (existing) and the new record
-        logEntry.append("New Record: ").append(newLead).append("\n");
-        logEntry.append("Existing Record: ").append(existingLead).append("\n");
-
-        // Compare field by field and log changes
-        logEntry.append("Potential Field Changes:\n");
-        logChanges(newLead, existingLead, logEntry);  // Field-level changes are logged here
-
-        // You can log the preferred record here (newLead, based on your logic)
-        logEntry.append("Chosen Record: ").append(existingLead).append("\n");
-
-        // Add log entry to the log list
-        log.add(logEntry.toString());  // Adds the full log entry (including field-level changes)
-
-    }
-
-    // Helper method to log field-level changes
-    private static void logChanges(Lead newLead, Lead existingLead, StringBuilder logEntry) {
-        // Compare fields and log changes
-        if (!newLead.getId().equals(existingLead.getId())) {
-            logEntry.append("ID change: ").append(existingLead.getId()).append(" -> ").append(newLead.getId()).append("\n");
+        logger.warn("Potential Field Changes:");
+        if (!Objects.equals(newLead.getId(), existingLead.getId())) {
+            logger.warn("ID Change: {} -> {}", existingLead.getId(), newLead.getId());
         }
-        if (!newLead.getEmail().equals(existingLead.getEmail())) {
-            logEntry.append("Email change: ").append(existingLead.getEmail()).append(" -> ").append(newLead.getEmail()).append("\n");
+        if (!Objects.equals(newLead.getEmail(), existingLead.getEmail())) {
+            logger.warn("Email Change: {} -> {}", existingLead.getEmail(), newLead.getEmail());
         }
-        if (!newLead.getFirstName().equals(existingLead.getFirstName())) {
-            logEntry.append("First Name change: ").append(existingLead.getFirstName()).append(" -> ").append(newLead.getFirstName()).append("\n");
+        if (!Objects.equals(newLead.getFirstName(), existingLead.getFirstName())) {
+            logger.warn("First Name Change: {} -> {}", existingLead.getFirstName(), newLead.getFirstName());
         }
-        if (!newLead.getLastName().equals(existingLead.getLastName())) {
-            logEntry.append("Last Name change: ").append(existingLead.getLastName()).append(" -> ").append(newLead.getLastName()).append("\n");
+        if (!Objects.equals(newLead.getLastName(), existingLead.getLastName())) {
+            logger.warn("Last Name Change: {} -> {}", existingLead.getLastName(), newLead.getLastName());
         }
-        if (!newLead.getAddress().equals(existingLead.getAddress())) {
-            logEntry.append("Address change: ").append(existingLead.getAddress()).append(" -> ").append(newLead.getAddress()).append("\n");
+        if (!Objects.equals(newLead.getAddress(), existingLead.getAddress())) {
+            logger.warn("Address Change: {} -> {}", existingLead.getAddress(), newLead.getAddress());
         }
-        if (!newLead.getEntryDate().equals(existingLead.getEntryDate())) {
-            logEntry.append("Entry Date change: ").append(existingLead.getEntryDate()).append(" -> ").append(newLead.getEntryDate()).append("\n");
+        if (!Objects.equals(newLead.getEntryDate(), existingLead.getEntryDate())) {
+            logger.warn("Entry Date Change: {} -> {}", existingLead.getEntryDate(), newLead.getEntryDate());
         }
-    }
-
-    private static void logConflictsToFile(List<String> log, String logFilePath) throws IOException {
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(logFilePath))) {
-            for (String logEntry : log) {
-                writer.write(logEntry);
-                writer.newLine();
-            }
-        }
+        logger.info("Chosen Record: {}", existingLead);
+        logger.warn("\n--- Next Record ---\n");
     }
 
 }
