@@ -32,18 +32,16 @@ public class DeduplicateRecords {
         // Read and parse JSON
         ObjectMapper mapper = new ObjectMapper();
         // Jackson doesn't support JAVA 8 Date/Time Type by default, so you need to provide this and register it to our mapper.
-        mapper.registerModule(new JavaTimeModule());  // Register the module
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS); // Optional: to write dates as ISO-8601 strings instead of as integer arrays.
+        mapper.registerModule(new JavaTimeModule());
+        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
 
         try {
-            // Attempt to read the leads data from the input file
+
             LeadsData leadsData = mapper.readValue(new File(inputFile), LeadsData.class);
 
-            // Deduplicate records
             List<Lead> deduplicatedLeads = deduplicate(leadsData.getLeads());
 
-            // Write deduplicated leads to a new file
             LeadsData result = new LeadsData(deduplicatedLeads);
             mapper.writerWithDefaultPrettyPrinter().writeValue(new File("deduplicated_leads.json"), result);
 
@@ -51,7 +49,6 @@ public class DeduplicateRecords {
             System.out.println("Logs of changes are available in the console and saved to: " + "app.logs");
 
         } catch (IOException e) {
-            // Catch any errors during file reading/writing
             System.out.println("Error processing the files: " + e.getMessage());
         }
 
@@ -68,7 +65,6 @@ public class DeduplicateRecords {
         Map<String, Lead> idMap = new HashMap<>();
         Map<String, Lead> emailMap = new HashMap<>();
         List<Lead> deduplicated = new ArrayList<>();
-        List<String> log = new ArrayList<>();
 
         for (Lead lead : leads) {
             Lead conflictingId = idMap.get(lead.getId());
