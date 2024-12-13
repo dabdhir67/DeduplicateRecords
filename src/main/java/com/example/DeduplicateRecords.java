@@ -16,6 +16,14 @@ import java.util.*;
 
 public class DeduplicateRecords {
     public static void main(String[] args) throws IOException {
+        //provide input file in command line check
+        if (args.length != 1) {
+            System.out.println("Please provide input file.");
+            System.exit(1); // Exit with a non-zero status to indicate an error
+        }
+
+        String inputFile = args[0];  // First argument is the input file name
+
         // Read and parse JSON
         ObjectMapper mapper = new ObjectMapper();
         // Jackson doesn't support JAVA 8 Date/Time Type by default, so you need to provide this and register it to our mapper.
@@ -23,15 +31,22 @@ public class DeduplicateRecords {
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS); // Optional: to write dates as ISO-8601 strings instead of as integer arrays.
 
 
-        LeadsData leadsData = mapper.readValue(new File("leads.json"), LeadsData.class);
+        try {
+            // Attempt to read the leads data from the input file
+            LeadsData leadsData = mapper.readValue(new File(inputFile), LeadsData.class);
 
-        // Deduplicate records
-        List<Lead> deduplicatedLeads = deduplicate(leadsData.getLeads());
+            // Deduplicate records
+            List<Lead> deduplicatedLeads = deduplicate(leadsData.getLeads());
 
-        // Write deduplicated leads to a new file
-        LeadsData result = new LeadsData(deduplicatedLeads);
-        mapper.writerWithDefaultPrettyPrinter().writeValue(new File("deduplicated_leads.json"), result);
+            // Write deduplicated leads to a new file
+            LeadsData result = new LeadsData(deduplicatedLeads);
+            mapper.writerWithDefaultPrettyPrinter().writeValue(new File("deduplicated_leads.json"), result);
 
+            System.out.println("Deduplication completed successfully. Output saved to: " + "deduplicated_leads.json");
+        } catch (IOException e) {
+            // Catch any errors during file reading/writing
+            System.out.println("Error processing the files: " + e.getMessage());
+        }
 
     }
 
@@ -58,8 +73,19 @@ public class DeduplicateRecords {
                 emailMap.put(lead.getEmail(), lead);
                 deduplicated.add(lead);
             } else {
+
+                if (conflictingId != null && conflictingId.getEntryDate().equals(lead.getEntryDate())) {
+                    // Same entryDate, prefer the last occurrence (current one)
+                    deduplicated.remove(conflictingId);
+                    deduplicated.add(lead);
+                } else if (conflictingEmail != null && conflictingEmail.getEntryDate().equals(lead.getEntryDate())) {
+                    // Same entryDate, prefer the last occurrence (current one)
+                    deduplicated.remove(conflictingEmail);
+                    deduplicated.add(lead);
+                }
+
                 // Log conflict resolution
-                Lead chosen = resolveConflict(lead, conflictingId != null ? conflictingId : conflictingEmail, log);
+                resolveConflict(lead, conflictingId != null ? conflictingId : conflictingEmail, log);
             }
         }
 
@@ -77,7 +103,7 @@ public class DeduplicateRecords {
         return deduplicated;
     }
 
-    private static Lead resolveConflict(Lead newLead, Lead existingLead, List<String> log) {
+    private static void resolveConflict(Lead newLead, Lead existingLead, List<String> log) {
         StringBuilder logEntry = new StringBuilder();
         logEntry.append("Conflict detected:\n");
 
@@ -95,7 +121,6 @@ public class DeduplicateRecords {
         // Add log entry to the log list
         log.add(logEntry.toString());  // Adds the full log entry (including field-level changes)
 
-        return existingLead; // Always choose the new record based on sorting
     }
 
     // Helper method to log field-level changes
@@ -214,4 +239,9 @@ class Lead {
     public String toString() {
         return String.format("{_id: %s, email: %s, entryDate: %s}", id, email, entryDate);
     }
+
+
 }
+
+
+
